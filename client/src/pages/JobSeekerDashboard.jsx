@@ -61,6 +61,87 @@ const SkeletonCards = () => (
   </div>
 );
 
+const getScoreMeta = (score) => {
+  if (typeof score !== 'number') {
+    return { color: '#94a3b8', label: 'Pending' };
+  }
+
+  if (score >= 86) return { color: '#10b981', label: 'Excellent' };
+  if (score >= 66) return { color: '#3b82f6', label: 'Good' };
+  if (score >= 41) return { color: '#f59e0b', label: 'Fair' };
+  return { color: '#ef4444', label: 'Poor' };
+};
+
+const ScoreRing = ({ score, size = 88 }) => {
+  const radius = (size - 10) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const normalizedScore = typeof score === 'number' ? Math.max(0, Math.min(score, 100)) : 0;
+  const offset = circumference - (normalizedScore / 100) * circumference;
+  const { color, label } = getScoreMeta(score);
+
+  return (
+    <div className="flex flex-col items-center">
+      <svg width={size} height={size} aria-label={`ATS score ${typeof score === 'number' ? score : 'pending'}`}>
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#e2e8f0" strokeWidth="8" />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke={color}
+          strokeWidth="8"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+          style={{ transition: 'stroke-dashoffset 0.8s ease' }}
+        />
+        <text
+          x="50%"
+          y="50%"
+          textAnchor="middle"
+          dominantBaseline="middle"
+          fontSize={size * 0.22}
+          fontWeight="700"
+          fill={color}
+        >
+          {typeof score === 'number' ? score : '–'}
+        </text>
+      </svg>
+      <span className="mt-1 text-xs font-medium" style={{ color }}>
+        {label}
+      </span>
+    </div>
+  );
+};
+
+const CategoryBar = ({ label, score = 0, max = 1 }) => {
+  const pct = max > 0 ? Math.round((score / max) * 100) : 0;
+
+  return (
+    <div className="flex items-center gap-3 text-sm">
+      <span className="w-36 text-xs text-slate-600">{label}</span>
+      <div className="h-2 flex-1 rounded-full bg-slate-100">
+        <div
+          className="h-2 rounded-full bg-primary-500 transition-all duration-500"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <span className="w-12 text-right text-xs font-medium text-slate-500">
+        {score}/{max}
+      </span>
+    </div>
+  );
+};
+
+const breakdownOrder = [
+  ['contact', 'Contact Info'],
+  ['sections', 'Section Complete'],
+  ['content', 'Content Quality'],
+  ['keywords', 'Keywords'],
+  ['formatting', 'ATS Formatting'],
+];
+
 const JobSeekerDashboard = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -77,7 +158,7 @@ const JobSeekerDashboard = () => {
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
   const [expandedResume, setExpandedResume] = useState(null);
-  const [loadingPreviewId, setLoadingPreviewId] = useState(null);
+  const [loadingExpandId, setLoadingExpandId] = useState(null);
 
   const fetchResumes = useCallback(async ({ silent = false } = {}) => {
     if (!silent) {
@@ -180,14 +261,14 @@ const JobSeekerDashboard = () => {
     }
   };
 
-  const handleViewText = async (resumeId) => {
+  const handleExpand = async (resumeId) => {
     if (expandedId === resumeId) {
       setExpandedId(null);
       setExpandedResume(null);
       return;
     }
 
-    setLoadingPreviewId(resumeId);
+    setLoadingExpandId(resumeId);
 
     try {
       const { data } = await api.get(`/resume/${resumeId}`);
@@ -196,7 +277,7 @@ const JobSeekerDashboard = () => {
     } catch (error) {
       setUploadError(error.response?.data?.message || 'Failed to fetch resume details');
     } finally {
-      setLoadingPreviewId(null);
+      setLoadingExpandId(null);
     }
   };
 
@@ -392,6 +473,11 @@ const JobSeekerDashboard = () => {
                 {resumes.map((resume) => {
                   const previewText = expandedId === resume._id ? expandedResume?.parsedText || '' : '';
                   const wordCount = previewText ? previewText.split(/\s+/).filter(Boolean).length : 0;
+                  const analysis = expandedId === resume._id ? expandedResume?.analysisResult : null;
+                  const keywords = analysis?.breakdown?.keywords?.found_keywords?.slice(0, 15) || [];
+                  const strengths = analysis?.summary?.strengths || [];
+                  const improvements = analysis?.summary?.improvements || [];
+                  const canExpand = resume.status === 'completed' && resume.atsScore !== null && resume.atsScore !== undefined;
 
                   return (
                   <article
@@ -400,7 +486,7 @@ const JobSeekerDashboard = () => {
                       deletingId === resume._id ? 'opacity-50' : 'opacity-100'
                     }`}
                   >
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+                    <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
                       <div className="flex min-w-0 flex-1 items-center gap-4">
                         <FileIcon fileType={resume.fileType} />
                         <div className="min-w-0">
@@ -416,32 +502,34 @@ const JobSeekerDashboard = () => {
                           <p className="mt-1 text-sm text-slate-500">
                             {formatFileSize(resume.fileSize)} • Uploaded {formatDate(resume.uploadedAt)}
                           </p>
+                          <div className="mt-3 flex flex-wrap items-center gap-2">
+                            <span
+                              className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                                statusStyles[resume.status] || statusStyles.pending
+                              }`}
+                            >
+                              {statusLabels[resume.status] || statusLabels.pending}
+                            </span>
+                            {resume.status === 'failed' && (
+                              <span className="text-xs font-medium text-red-600">
+                                File may be image-based or corrupted.
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-3 lg:justify-end">
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                            statusStyles[resume.status] || statusStyles.pending
-                          }`}
-                        >
-                          {statusLabels[resume.status] || statusLabels.pending}
-                        </span>
-                        <div className="rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-500">
-                          ATS Score:{' '}
-                          <span className="font-bold text-slate-900">
-                            {resume.atsScore === null || resume.atsScore === undefined ? '–' : resume.atsScore}
-                          </span>
-                        </div>
+                      <div className="flex shrink-0 flex-wrap items-center gap-3 sm:justify-end">
+                        <ScoreRing score={resume.atsScore} />
 
-                        {resume.status === 'completed' && (
+                        {canExpand && (
                           <button
                             type="button"
-                            onClick={() => handleViewText(resume._id)}
-                            disabled={loadingPreviewId === resume._id}
+                            onClick={() => handleExpand(resume._id)}
+                            disabled={loadingExpandId === resume._id}
                             className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 transition hover:border-primary-200 hover:text-primary-700 disabled:opacity-60"
                           >
-                            {expandedId === resume._id ? '⌃ Hide Text' : '⌄ View Extracted Text'}
+                            {expandedId === resume._id ? 'Hide Analysis' : 'View Analysis'}
                           </button>
                         )}
 
@@ -478,25 +566,83 @@ const JobSeekerDashboard = () => {
                       </div>
                     </div>
 
-                    {resume.status === 'failed' && (
-                      <p className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
-                        File may be image-based or corrupted.
+                    {resume.status === 'completed' && (resume.atsScore === null || resume.atsScore === undefined) && (
+                      <p className="mt-4 rounded-lg bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                        Re-upload to get score.
                       </p>
                     )}
 
-                    {expandedId === resume._id && (
+                    {expandedId === resume._id && analysis && (
                       <div className="mt-4 rounded-lg border border-slate-100 bg-slate-50 p-4">
-                        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                          <h3 className="font-semibold text-slate-900">Text Preview</h3>
-                          <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+                        <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
+                          <h3 className="font-display text-lg font-bold text-slate-950">Category Scores</h3>
+                          <span className="rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700">
                             ~{wordCount} words extracted
                           </span>
                         </div>
-                        <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-md bg-slate-900 p-4 font-mono text-sm leading-6 text-slate-100">
-                          {previewText
-                            ? `${previewText.slice(0, 300)}${previewText.length > 300 ? '...' : ''}`
-                            : 'No extracted text available yet.'}
-                        </pre>
+
+                        <div className="space-y-3">
+                          {breakdownOrder.map(([key, label]) => {
+                            const item = analysis.breakdown?.[key];
+                            if (!item) return null;
+                            return <CategoryBar key={key} label={label} score={item.score} max={item.max} />;
+                          })}
+                        </div>
+
+                        <div className="mt-6 grid gap-5 lg:grid-cols-2">
+                          <div>
+                            <h4 className="font-semibold text-emerald-700">✅ Strengths</h4>
+                            {strengths.length > 0 ? (
+                              <ul className="mt-3 space-y-2 text-sm text-slate-600">
+                                {strengths.map((item) => (
+                                  <li key={item}>• {item}</li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <p className="mt-3 text-sm text-slate-500">No strengths detected yet.</p>
+                            )}
+                          </div>
+
+                          <div>
+                            <h4 className="font-semibold text-amber-700">🔧 Improvements Needed</h4>
+                            {improvements.length > 0 ? (
+                              <ul className="mt-3 space-y-2 text-sm text-slate-600">
+                                {improvements.map((item) => (
+                                  <li key={item}>• {item}</li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <p className="mt-3 text-sm text-slate-500">No major improvements detected.</p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="mt-6">
+                          <h4 className="font-semibold text-slate-900">🏷️ Keywords Detected</h4>
+                          {keywords.length > 0 ? (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {keywords.map((keyword) => (
+                                <span
+                                  key={keyword}
+                                  className="rounded-full border border-primary-100 bg-primary-50 px-2 py-0.5 text-xs font-medium text-primary-700"
+                                >
+                                  {keyword}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="mt-3 text-sm text-slate-500">No technical keywords detected.</p>
+                          )}
+                        </div>
+
+                        <div className="mt-6">
+                          <h4 className="font-semibold text-slate-900">Text Preview</h4>
+                          <pre className="mt-3 max-h-56 overflow-auto whitespace-pre-wrap rounded-md bg-slate-900 p-4 font-mono text-sm leading-6 text-slate-100">
+                            {previewText
+                              ? `${previewText.slice(0, 300)}${previewText.length > 300 ? '...' : ''}`
+                              : 'No extracted text available yet.'}
+                          </pre>
+                        </div>
                       </div>
                     )}
                   </article>

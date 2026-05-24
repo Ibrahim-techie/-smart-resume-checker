@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 
 from db import get_db
 from extractor import extract_text
+from scorer import score_resume
 
 load_dotenv()
 
@@ -21,7 +22,7 @@ def health():
     return jsonify({
         "status": "AI Service running ✅",
         "version": "2.0.0",
-        "services": ["text-extraction"],
+        "services": ["text-extraction", "ats-scoring"],
     })
 
 
@@ -53,10 +54,15 @@ def extract():
         if not parsed_text or len(parsed_text.strip()) < 50:
             raise ValueError("Extracted text is too short — file may be image-based or empty")
 
+        scoring_result = score_resume(parsed_text)
+        ats_score = scoring_result['atsScore']
+
         resumes.update_one(
             {"_id": ObjectId(resume_id)},
             {"$set": {
                 "parsedText": parsed_text,
+                "atsScore": ats_score,
+                "analysisResult": scoring_result,
                 "status": "completed",
                 "analysisCompletedAt": datetime.now(timezone.utc),
             }},
@@ -65,9 +71,11 @@ def extract():
         return jsonify({
             "success": True,
             "resumeId": resume_id,
+            "atsScore": ats_score,
             "charCount": len(parsed_text),
             "wordCount": len(parsed_text.split()),
-            "preview": parsed_text[:300] + "..." if len(parsed_text) > 300 else parsed_text,
+            "strengths": scoring_result['summary']['strengths'],
+            "improvements": scoring_result['summary']['improvements'],
         })
     except Exception as error:
         resumes.update_one(

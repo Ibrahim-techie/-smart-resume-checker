@@ -4,7 +4,6 @@ const dotenv = require('dotenv');
 const connectDB = require('./config/db');
 
 dotenv.config();
-console.log("MONGO URI:", process.env.MONGO_URI);
 connectDB();
 
 const app = express();
@@ -16,6 +15,7 @@ app.use(cors({
 app.use(express.json());
 
 app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/resume', require('./routes/resumeRoutes'));
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'Server is running ✅', timestamp: new Date().toISOString() });

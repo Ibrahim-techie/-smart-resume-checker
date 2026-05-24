@@ -14,7 +14,9 @@ build/
 
 # Python
 __pycache__/
-.pytest_cache__/
+*.pyc
+*.pyo
+.pytest_cache/
 .venv/
 venv/
 
