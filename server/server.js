@@ -17,6 +17,7 @@ app.use(express.json());
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/resume', require('./routes/resumeRoutes'));
 app.use('/api/jd', require('./routes/jdRoutes'));
+app.use('/api/recruiter', require('./routes/recruiterRoutes'));
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'Server is running ✅', timestamp: new Date().toISOString() });
