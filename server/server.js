@@ -18,6 +18,7 @@ app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/resume', require('./routes/resumeRoutes'));
 app.use('/api/jd', require('./routes/jdRoutes'));
 app.use('/api/recruiter', require('./routes/recruiterRoutes'));
+app.use('/api/ai', require('./routes/aiRoutes'));
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'Server is running ✅', timestamp: new Date().toISOString() });

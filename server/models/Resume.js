@@ -54,6 +54,14 @@ const resumeSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.Mixed,
     default: null,
   },
+  geminiSuggestions: {
+    type: [String],
+    default: null,
+  },
+  lastSuggestedAt: {
+    type: Date,
+    default: null,
+  },
   uploadedAt: {
     type: Date,
     default: Date.now,

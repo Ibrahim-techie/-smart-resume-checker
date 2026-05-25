@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { toast } from '../utils/toast';
 
 const roles = [
   {
@@ -28,7 +29,6 @@ const RegisterPage = () => {
     confirmPassword: '',
     role: 'jobseeker',
   });
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -45,20 +45,19 @@ const RegisterPage = () => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    setError('');
 
     if (!formData.name || !formData.email || !formData.password || !formData.confirmPassword) {
-      setError('All fields are required');
+      toast.error('All fields are required');
       return;
     }
 
     if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters');
+      toast.error('Password must be at least 6 characters');
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+      toast.error('Passwords do not match');
       return;
     }
 
@@ -66,9 +65,10 @@ const RegisterPage = () => {
 
     try {
       const user = await register(formData.name, formData.email, formData.password, formData.role);
+      toast.success('Account created successfully.');
       navigate(user.role === 'recruiter' ? '/recruiter' : '/dashboard', { replace: true });
     } catch (requestError) {
-      setError(requestError.response?.data?.message || 'Unable to register right now');
+      toast.error(requestError.response?.data?.message || 'Unable to register right now');
     } finally {
       setLoading(false);
     }
@@ -95,12 +95,6 @@ const RegisterPage = () => {
         <main className="p-6 sm:p-10">
           <h2 className="font-display text-3xl font-bold text-slate-950">Register</h2>
           <p className="mt-2 text-slate-500">Start with a role-aware account.</p>
-
-          {error && (
-            <div className="mt-6 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
-            </div>
-          )}
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-5">
             <div className="grid gap-4 sm:grid-cols-2">

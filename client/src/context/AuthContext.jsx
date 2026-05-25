@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import api from '../utils/api';
+import { toast } from '../utils/toast';
 
 const AuthContext = createContext(null);
 
@@ -24,19 +25,33 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (email, password) => {
-    const { data } = await api.post('/auth/login', { email, password });
-    localStorage.setItem('token', data.token);
-    localStorage.setItem('user', JSON.stringify(data));
-    setUser(data);
-    return data;
+    try {
+      const { data } = await api.post('/auth/login', { email, password });
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data));
+      setUser(data);
+      return data;
+    } catch (error) {
+      if (!error.response) {
+        toast.error('Network error. Check that the backend server is running.');
+      }
+      throw error;
+    }
   };
 
   const register = async (name, email, password, role) => {
-    const { data } = await api.post('/auth/register', { name, email, password, role });
-    localStorage.setItem('token', data.token);
-    localStorage.setItem('user', JSON.stringify(data));
-    setUser(data);
-    return data;
+    try {
+      const { data } = await api.post('/auth/register', { name, email, password, role });
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data));
+      setUser(data);
+      return data;
+    } catch (error) {
+      if (!error.response) {
+        toast.error('Network error. Check that the backend server is running.');
+      }
+      throw error;
+    }
   };
 
   const logout = () => {

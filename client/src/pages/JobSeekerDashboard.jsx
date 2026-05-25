@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
+import { toast } from '../utils/toast';
 
 const statusStyles = {
   pending: 'bg-slate-100 text-slate-600',
@@ -173,7 +174,6 @@ const JobSeekerDashboard = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
-  const [uploadSuccess, setUploadSuccess] = useState(false);
   const [resumes, setResumes] = useState([]);
   const [loadingResumes, setLoadingResumes] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
@@ -192,6 +192,7 @@ const JobSeekerDashboard = () => {
   const [expandedMatchId, setExpandedMatchId] = useState(null);
   const [showHistory, setShowHistory] = useState(false);
   const [deletingMatchId, setDeletingMatchId] = useState(null);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
 
   const fetchResumes = useCallback(async ({ silent = false } = {}) => {
     if (!silent) {
@@ -273,7 +274,6 @@ const JobSeekerDashboard = () => {
     if (!file) return;
     setSelectedFile(file);
     setUploadError('');
-    setUploadSuccess(false);
   };
 
   const handleDrop = (event) => {
@@ -296,16 +296,20 @@ const JobSeekerDashboard = () => {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
-      setUploadSuccess(true);
+      toast.success('Resume uploaded! Analysis starting...');
       setSelectedFile(null);
 
       setTimeout(() => {
-        setUploadSuccess(false);
         setActiveTab('my-resumes');
         fetchResumes();
       }, 1500);
     } catch (err) {
-      setUploadError(err.response?.data?.message || 'Upload failed. Please try again.');
+      const message = err.response?.data?.message || 'Upload failed. Please try again.';
+      if (message.toLowerCase().includes('already uploaded')) {
+        toast.warning("You've already uploaded this exact file.");
+      } else {
+        toast.error(message);
+      }
     } finally {
       setUploading(false);
     }
@@ -318,8 +322,9 @@ const JobSeekerDashboard = () => {
       await api.delete(`/resume/${resumeId}`);
       setResumes((current) => current.filter((resume) => resume._id !== resumeId));
       setConfirmDeleteId(null);
+      toast.success('Resume deleted.');
     } catch (error) {
-      setUploadError(error.response?.data?.message || 'Unable to delete resume');
+      toast.error(error.response?.data?.message || 'Unable to delete resume');
     } finally {
       setDeletingId(null);
     }
@@ -345,6 +350,49 @@ const JobSeekerDashboard = () => {
     }
   };
 
+  const handleGetSuggestions = async (resumeId) => {
+    setLoadingSuggestions(true);
+
+    try {
+      const { data } = await api.post('/ai/suggest', { resumeId });
+      setExpandedResume((current) => ({
+        ...current,
+        geminiSuggestions: data.suggestions,
+        lastSuggestedAt: data.generatedAt || data.cachedAt,
+        cached: data.cached,
+      }));
+
+      if (data.cached) {
+        toast.info('Showing cached suggestions. Click Regenerate for fresh tips.');
+      } else {
+        toast.success('AI suggestions generated!');
+      }
+    } catch (error) {
+      if (error.response?.status === 429) {
+        toast.warning('AI quota reached. Try again in a minute.');
+      } else {
+        toast.error(error.response?.data?.message || 'Failed to get suggestions.');
+      }
+    } finally {
+      setLoadingSuggestions(false);
+    }
+  };
+
+  const handleClearSuggestions = async (resumeId) => {
+    try {
+      await api.delete(`/ai/suggest/${resumeId}`);
+      setExpandedResume((current) => ({
+        ...current,
+        geminiSuggestions: null,
+        lastSuggestedAt: null,
+        cached: false,
+      }));
+      toast.info('Cleared. Click Get AI Tips to regenerate.');
+    } catch (error) {
+      toast.error('Failed to clear suggestions.');
+    }
+  };
+
   const handleMatch = async () => {
     if (!selectedResumeId || !jdText.trim()) return;
 
@@ -362,7 +410,9 @@ const JobSeekerDashboard = () => {
       setShowHistory(false);
       fetchMatchHistory(selectedResumeId);
     } catch (error) {
-      setMatchError(error.response?.data?.message || 'Match analysis failed. Try again.');
+      const message = error.response?.data?.message || 'Match analysis failed. Try again.';
+      setMatchError(message);
+      toast.error(message);
     } finally {
       setMatching(false);
     }
@@ -381,8 +431,11 @@ const JobSeekerDashboard = () => {
       if (expandedMatchId === matchId) {
         setExpandedMatchId(null);
       }
+      toast.success('Match deleted.');
     } catch (error) {
-      setMatchError(error.response?.data?.message || 'Unable to delete match');
+      const message = error.response?.data?.message || 'Unable to delete match';
+      setMatchError(message);
+      toast.error(message);
     } finally {
       setDeletingMatchId(null);
     }
@@ -458,12 +511,6 @@ const JobSeekerDashboard = () => {
         {activeTab === 'upload' && (
           <section className="mt-8">
             <div className="mx-auto max-w-2xl">
-              {uploadSuccess && (
-                <div className="mb-5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-                  ✅ Resume uploaded! Redirecting to your resumes...
-                </div>
-              )}
-
               {uploadError && (
                 <div
                   className={`mb-5 rounded-lg border px-4 py-3 text-sm font-medium ${
@@ -564,7 +611,7 @@ const JobSeekerDashboard = () => {
               </button>
             </div>
 
-            {uploadError && !uploadSuccess && (
+            {uploadError && (
               <div className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
                 {uploadError}
               </div>
@@ -734,6 +781,60 @@ const JobSeekerDashboard = () => {
                               <p className="mt-3 text-sm text-slate-500">No major improvements detected.</p>
                             )}
                           </div>
+                        </div>
+
+                        <div className="mt-6 border-t border-slate-100 pt-5">
+                          <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <h4 className="text-sm font-semibold text-slate-700">✨ AI Coach Suggestions</h4>
+                              <p className="mt-0.5 text-xs text-slate-400">
+                                Powered by Gemini · Personalized tips beyond rule-based analysis
+                              </p>
+                            </div>
+                            <div className="flex gap-2">
+                              {expandedResume?.geminiSuggestions?.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleClearSuggestions(expandedResume._id)}
+                                  className="text-xs text-slate-400 transition hover:text-slate-600"
+                                >
+                                  Regenerate
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleGetSuggestions(expandedResume._id)}
+                                disabled={loadingSuggestions}
+                                className="flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-violet-700 disabled:bg-violet-300"
+                              >
+                                {loadingSuggestions && (
+                                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                                )}
+                                {loadingSuggestions
+                                  ? 'Generating...'
+                                  : expandedResume?.geminiSuggestions?.length > 0
+                                    ? 'View Suggestions'
+                                    : 'Get AI Tips'}
+                              </button>
+                            </div>
+                          </div>
+
+                          {expandedResume?.geminiSuggestions?.length > 0 && (
+                            <div className="space-y-2">
+                              {expandedResume.geminiSuggestions.map((tip, index) => (
+                                <div key={tip} className="flex gap-3 rounded-lg border border-violet-100 bg-violet-50 p-3">
+                                  <span className="shrink-0 text-sm font-bold text-violet-400">{index + 1}.</span>
+                                  <p className="text-sm leading-relaxed text-violet-900">{tip}</p>
+                                </div>
+                              ))}
+                              {expandedResume.lastSuggestedAt && (
+                                <p className="mt-1 text-right text-xs text-slate-400">
+                                  Generated {new Date(expandedResume.lastSuggestedAt).toLocaleDateString()}
+                                  {expandedResume.cached ? ' · Cached' : ''}
+                                </p>
+                              )}
+                            </div>
+                          )}
                         </div>
 
                         <div className="mt-6">

@@ -2,26 +2,27 @@ import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 
 const stats = [
-  { value: '75%', label: 'Resumes Rejected by ATS' },
-  { value: '6 sec', label: 'Per Recruiter Review' },
-  { value: '98%', label: 'Fortune 500 Use ATS' },
+  { value: 'PDF/DOCX', label: 'Resume Extracted' },
+  { value: '0-100', label: 'ATS Scored' },
+  { value: 'TF-IDF', label: 'JD Matched' },
+  { value: 'Gemini', label: 'AI Tips Generated' },
 ];
 
 const features = [
   {
-    icon: 'RP',
-    title: 'Resume Parsing',
-    description: 'Extract education, experience, projects, skills, and contact details from uploaded resumes.',
+    icon: '📊',
+    title: 'Resume Quality Score',
+    description: '5-category ATS compatibility breakdown: contact info, sections, content quality, keywords, and formatting. Know exactly what recruiters see.',
   },
   {
-    icon: 'AS',
-    title: 'ATS Scoring',
-    description: 'Compare resumes against job descriptions and estimate compatibility with screening systems.',
+    icon: '🎯',
+    title: 'Job Description Matching',
+    description: "Paste any job description. Get a match percentage, see exactly which keywords you have and which you're missing. Tailored per role.",
   },
   {
-    icon: 'SS',
-    title: 'Smart Suggestions',
-    description: 'Highlight missing keywords, skill gaps, and improvement areas before applications go out.',
+    icon: '✨',
+    title: 'Gemini AI Suggestions',
+    description: 'Beyond rule-based tips, Gemini analyzes your specific resume data and generates personalized improvement strategies.',
   },
 ];
 
@@ -42,7 +43,7 @@ const LandingPage = () => {
                 Get Your Resume ATS-Ready in Seconds
               </h1>
               <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-300">
-                Analyze resumes against job descriptions, uncover missing skills, and give recruiters a faster way to rank candidates.
+                Upload your resume, get an ATS compatibility score with full breakdown, match against any job description, and receive AI-powered improvement tips completely free.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Link
@@ -93,7 +94,7 @@ const LandingPage = () => {
         </section>
 
         <section className="border-b border-slate-200 bg-slate-50">
-          <div className="mx-auto grid max-w-6xl gap-4 px-5 py-8 md:grid-cols-3">
+          <div className="mx-auto grid max-w-6xl gap-4 px-5 py-8 sm:grid-cols-2 lg:grid-cols-4">
             {stats.map((stat) => (
               <div key={stat.label} className="text-center">
                 <p className="font-display text-3xl font-bold text-slate-900">{stat.value}</p>
@@ -127,8 +128,10 @@ const LandingPage = () => {
         <section className="bg-slate-950 px-5 py-16 text-white">
           <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-6 md:flex-row md:items-center">
             <div>
-              <h2 className="font-display text-3xl font-bold">Start for free. No credit card needed.</h2>
-              <p className="mt-3 text-slate-300">Create an account and prepare for the resume analysis phase.</p>
+              <h2 className="font-display text-3xl font-bold">Two roles. One platform.</h2>
+              <p className="mt-3 text-slate-300">
+                For job seekers: analyze, improve, match. For recruiters: post JDs, rank candidates instantly.
+              </p>
             </div>
             <Link
               to="/register"

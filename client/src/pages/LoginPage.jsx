@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { toast } from '../utils/toast';
 
 const LoginPage = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({ email: '', password: '' });
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleChange = (event) => {
@@ -16,14 +16,14 @@ const LoginPage = () => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    setError('');
     setLoading(true);
 
     try {
       const user = await login(formData.email, formData.password);
+      toast.success('Logged in successfully.');
       navigate(user.role === 'recruiter' ? '/recruiter' : '/dashboard', { replace: true });
     } catch (requestError) {
-      setError(requestError.response?.data?.message || 'Unable to login right now');
+      toast.error(requestError.response?.data?.message || 'Unable to login right now');
     } finally {
       setLoading(false);
     }
@@ -54,12 +54,6 @@ const LoginPage = () => {
           </Link>
           <h2 className="font-display text-3xl font-bold text-slate-950">Login</h2>
           <p className="mt-2 text-slate-500">Enter your credentials to continue.</p>
-
-          {error && (
-            <div className="mt-6 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
-            </div>
-          )}
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-5">
             <label className="block">

@@ -32,13 +32,18 @@ const RankResults = ({ result, ranked }) => {
 
   return (
     <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-      <div className="border-b border-slate-100 pb-5">
-        <h3 className="font-display text-2xl font-bold text-slate-950">
-          Ranked Results for: "{result.jobTitle}"
-        </h3>
-        <p className="mt-1 text-sm text-slate-500">
-          {result.total} candidates • Ranked at {formatDate(result.rankedAt)}
-        </p>
+      <div className="flex flex-col gap-3 border-b border-slate-100 pb-5 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h3 className="font-display text-2xl font-bold text-slate-950">
+            Ranked Results for: "{result.jobTitle}"
+          </h3>
+          <p className="mt-1 text-sm text-slate-500">
+            {result.total} candidates • Ranked at {formatDate(result.rankedAt)}
+          </p>
+        </div>
+        <span className="rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700">
+          Sorted by match score
+        </span>
       </div>
       <div className="mt-5 space-y-4">
         {ranked.map((candidate, index) => (
