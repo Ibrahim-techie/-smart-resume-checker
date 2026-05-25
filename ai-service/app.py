@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 
 from db import get_db
 from extractor import extract_text
+from matcher import match_resume_to_jd
 from scorer import score_resume
 
 load_dotenv()
@@ -22,7 +23,7 @@ def health():
     return jsonify({
         "status": "AI Service running ✅",
         "version": "2.0.0",
-        "services": ["text-extraction", "ats-scoring"],
+        "services": ["text-extraction", "ats-scoring", "jd-matching"],
     })
 
 
@@ -86,6 +87,55 @@ def extract():
                 "analysisResult": {"error": str(error)},
             }},
         )
+        traceback.print_exc()
+        return jsonify({"error": str(error)}), 500
+
+
+@app.route('/match', methods=['POST'])
+def match():
+    data = request.get_json(silent=True) or {}
+    resume_id = data.get('resumeId')
+    jd_text = data.get('jdText', '').strip()
+    jd_title = data.get('jdTitle', 'Untitled Position').strip() or 'Untitled Position'
+
+    if not resume_id or not jd_text:
+        return jsonify({"error": "resumeId and jdText are required"}), 400
+
+    if len(jd_text) < 50:
+        return jsonify({"error": "Job description is too short. Please paste the full JD."}), 400
+
+    db = get_db()
+    resumes = db['resumes']
+
+    try:
+        resume_doc = resumes.find_one({"_id": ObjectId(resume_id)})
+
+        if not resume_doc:
+            return jsonify({"error": "Resume not found"}), 404
+
+        parsed_text = resume_doc.get('parsedText', '')
+        if not parsed_text or len(parsed_text) < 50:
+            return jsonify({
+                "error": "Resume text not extracted yet. Please wait for extraction to complete."
+            }), 400
+
+        result = match_resume_to_jd(parsed_text, jd_text, jd_title)
+
+        return jsonify({
+            "success": True,
+            "resumeId": resume_id,
+            "jdTitle": jd_title,
+            "matchScore": result['matchScore'],
+            "matchedKeywords": result['matchedKeywords'],
+            "missingKeywords": result['missingKeywords'],
+            "matchedTech": result['matchedTech'],
+            "missingTech": result['missingTech'],
+            "matchedSoft": result['matchedSoft'],
+            "missingSoft": result['missingSoft'],
+            "suggestions": result['suggestions'],
+            "jdKeywords": result['jdKeywords'],
+        })
+    except Exception as error:
         traceback.print_exc()
         return jsonify({"error": str(error)}), 500
 
