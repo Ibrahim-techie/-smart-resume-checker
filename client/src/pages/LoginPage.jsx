@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
-import { toast } from '../utils/toast';
 
 const LoginPage = () => {
   const { login } = useAuth();

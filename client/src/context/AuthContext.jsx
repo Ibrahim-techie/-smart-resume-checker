@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import api from '../utils/api';
-import { toast } from '../utils/toast';
 
 const AuthContext = createContext(null);
 

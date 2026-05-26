@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
-import { toast } from '../utils/toast';
 
 const statusStyles = {
   pending: 'bg-slate-100 text-slate-600',
