@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
+import { useDropzone } from 'react-dropzone';
 import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
@@ -140,9 +141,7 @@ const MissingBadge = ({ label }) => (
 const JobSeekerDashboard = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const fileInputRef = useRef(null);
   const [activeTab, setActiveTab] = useState('upload');
-  const [dragOver, setDragOver] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
@@ -242,17 +241,28 @@ const JobSeekerDashboard = () => {
     navigate('/');
   };
 
-  const handleFileSelect = (file) => {
+  const validateAndSetFile = (file) => {
     if (!file) return;
     setSelectedFile(file);
     setUploadError('');
   };
 
-  const handleDrop = (event) => {
-    event.preventDefault();
-    setDragOver(false);
-    handleFileSelect(event.dataTransfer.files?.[0]);
-  };
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop: (acceptedFiles) => {
+      if (acceptedFiles.length > 0) validateAndSetFile(acceptedFiles[0]);
+    },
+    accept: {
+      'application/pdf': ['.pdf'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+    },
+    maxSize: 5 * 1024 * 1024,
+    multiple: false,
+    onDropRejected: (rejectedFiles) => {
+      const error = rejectedFiles[0]?.errors[0];
+      if (error?.code === 'file-too-large') setUploadError('File must be under 5MB');
+      else setUploadError('Only PDF and DOCX files are allowed');
+    },
+  });
 
   const handleUpload = async () => {
     if (!selectedFile) return;
@@ -495,28 +505,16 @@ const JobSeekerDashboard = () => {
                 </div>
               )}
 
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                onDragOver={(event) => {
-                  event.preventDefault();
-                  setDragOver(true);
-                }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={handleDrop}
-                className={`w-full rounded-xl border-2 p-10 text-center transition ${
-                  dragOver
+              <div
+                {...getRootProps()}
+                className={`border-2 border-dashed rounded-xl p-10 text-center cursor-pointer
+                  transition-all duration-200
+                  ${isDragActive
                     ? 'border-primary-500 bg-primary-50'
-                    : 'border-dashed border-slate-300 bg-white hover:border-primary-300'
-                }`}
+                    : 'border-slate-200 hover:border-primary-400 hover:bg-slate-50'
+                  }`}
               >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                  className="hidden"
-                  onChange={(event) => handleFileSelect(event.target.files?.[0])}
-                />
+                <input {...getInputProps()} />
                 <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-xl bg-primary-50 text-3xl">
                   📄
                 </span>
@@ -527,7 +525,7 @@ const JobSeekerDashboard = () => {
                 <span className="mt-5 inline-flex rounded-full bg-slate-100 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-600">
                   PDF • DOCX • Max 5MB
                 </span>
-              </button>
+              </div>
 
               {selectedFile && (
                 <div className="mt-5 rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
