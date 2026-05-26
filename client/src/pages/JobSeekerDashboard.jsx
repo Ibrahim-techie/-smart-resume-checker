@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
+import 'react-circular-progressbar/dist/styles.css';
 import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
@@ -62,59 +64,29 @@ const SkeletonCards = () => (
   </div>
 );
 
-const getScoreMeta = (score) => {
-  if (typeof score !== 'number') {
-    return { color: '#94a3b8', label: 'Pending' };
-  }
-
-  if (score >= 86) return { color: '#10b981', label: 'Excellent' };
-  if (score >= 66) return { color: '#3b82f6', label: 'Good' };
-  if (score >= 41) return { color: '#f59e0b', label: 'Fair' };
-  return { color: '#ef4444', label: 'Poor' };
-};
-
-const ScoreRing = ({ score, size = 88 }) => {
-  const radius = (size - 10) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const normalizedScore = typeof score === 'number' ? Math.max(0, Math.min(score, 100)) : 0;
-  const offset = circumference - (normalizedScore / 100) * circumference;
-  const { color, label } = getScoreMeta(score);
-  const displayScore = typeof score === 'number'
-    ? (Number.isInteger(score) ? score : score.toFixed(1))
-    : '–';
-
+const ScoreRing = ({ score, size = 80 }) => {
+  const color =
+    score >= 86 ? '#10b981' :
+    score >= 66 ? '#3b82f6' :
+    score >= 41 ? '#f59e0b' : '#ef4444';
+  const label =
+    score >= 86 ? 'Excellent' :
+    score >= 66 ? 'Good' :
+    score >= 41 ? 'Fair' : 'Poor';
   return (
-    <div className="flex flex-col items-center">
-      <svg width={size} height={size} aria-label={`Score ${typeof score === 'number' ? displayScore : 'pending'}`}>
-        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#e2e8f0" strokeWidth="8" />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke={color}
-          strokeWidth="8"
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          strokeLinecap="round"
-          transform={`rotate(-90 ${size / 2} ${size / 2})`}
-          style={{ transition: 'stroke-dashoffset 0.8s ease' }}
-        />
-        <text
-          x="50%"
-          y="50%"
-          textAnchor="middle"
-          dominantBaseline="middle"
-          fontSize={size * 0.22}
-          fontWeight="700"
-          fill={color}
-        >
-          {displayScore}
-        </text>
-      </svg>
-      <span className="mt-1 text-xs font-medium" style={{ color }}>
-        {label}
-      </span>
+    <div style={{ width: size, height: size }} className="flex flex-col items-center">
+      <CircularProgressbar
+        value={score}
+        text={`${score}`}
+        styles={buildStyles({
+          textSize: '22px',
+          pathColor: color,
+          textColor: color,
+          trailColor: '#e2e8f0',
+          pathTransitionDuration: 0.8,
+        })}
+      />
+      <span className="text-xs font-medium mt-1" style={{ color }}>{label}</span>
     </div>
   );
 };
